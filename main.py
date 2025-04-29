@@ -5,7 +5,7 @@ import statistics
 from collections import Counter
 import logging
 
-from utils import get_data, generate_random_data, GeneratedData, DataAnalysis
+from utils import generate_random_data, GeneratedData, DataAnalysis
 
 # Configure logging
 logging.basicConfig(
