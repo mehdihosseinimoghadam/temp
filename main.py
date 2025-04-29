@@ -1,24 +1,11 @@
-from fastapi import FastAPI, HTTPException
-import requests
-import random
-from typing import List, Dict, Any, Optional
-from pydantic import BaseModel
+from fastapi import FastAPI, HTTPException, Query
+from typing import List, Optional, Dict
+import statistics
+from collections import Counter
+
+from utils import get_data, generate_random_data, GeneratedData, DataAnalysis
 
 app = FastAPI(title="Data Generator API")
-
-
-def get_data(url):
-    response = requests.get(url)
-    return response.json()
-
-# Define a response model
-
-
-class GeneratedData(BaseModel):
-    id: int
-    name: str
-    value: float
-    tags: List[str]
 
 
 @app.get("/")
@@ -27,36 +14,23 @@ def read_root():
 
 
 @app.get("/generate-data", response_model=List[GeneratedData])
-def generate_data(count: Optional[int] = 10):
+def generate_data(count: Optional[int] = Query(10, ge=1, le=100)):
     """
     Generate random sample data.
 
     Parameters:
-    - count: Number of data items to generate (default: 10)
+    - count: Number of data items to generate (default: 10, min: 1, max: 100)
 
     Returns:
     - List of generated data items
     """
-    if count <= 0 or count > 100:
-        raise HTTPException(
-            status_code=400, detail="Count must be between 1 and 100")
-
-    result = []
-    for i in range(count):
-        result.append({
-            "id": i + 1,
-            "name": f"Item-{random.randint(1000, 9999)}",
-            "value": round(random.uniform(0, 100), 2),
-            "tags": random.sample(["red", "green", "blue", "alpha", "beta", "gamma"], k=random.randint(1, 3))
-        })
-
-    return result
+    return generate_random_data(count)
 
 
 @app.get("/fetch-external-data")
 def fetch_external_data(url: str):
     """
-    Fetch data from an external URL using the existing get_data function.
+    Fetch data from an external URL.
 
     Parameters:
     - url: The URL to fetch data from
@@ -69,6 +43,38 @@ def fetch_external_data(url: str):
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error fetching data: {str(e)}")
+
+
+@app.get("/analyze-data", response_model=DataAnalysis)
+def analyze_data(count: Optional[int] = Query(20, ge=1, le=100)):
+    """
+    Generate and analyze random data.
+
+    Parameters:
+    - count: Number of data items to generate and analyze (default: 20)
+
+    Returns:
+    - Statistical analysis of the generated data
+    """
+    data = generate_random_data(count)
+
+    # Extract values for analysis
+    values = [item["value"] for item in data]
+    all_tags = [tag for item in data for tag in item["tags"]]
+
+    # Find most common tag
+    tag_counter = Counter(all_tags)
+    most_common = tag_counter.most_common(1)[0][0] if all_tags else "none"
+
+    analysis = {
+        "count": len(data),
+        "average_value": round(statistics.mean(values), 2),
+        "most_common_tag": most_common,
+        "min_value": min(values),
+        "max_value": max(values)
+    }
+
+    return analysis
 
 
 if __name__ == "__main__":
